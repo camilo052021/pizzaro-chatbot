@@ -1,0 +1,362 @@
+{
+  "name": "Pizzaro - Chatbot Final",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hellooo! \ud83d\udc4b My name is Pizzaro \ud83c\udf55. I'm here to help with your pizza order. How can I assist you?\n\n\ud83d\udce3 INFO: If you'd like to order a pizza, please include your name + pizza type + quantity + any extras or drinks. Thank you!",
+        "options": {}
+      },
+      "id": "trigger-001",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "position": [
+        208,
+        -128
+      ],
+      "webhookId": "d925cc6e-6dd7-4459-a917-e68d57ab0e2a",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "=Your name is Pizzaro. You are a pizza ordering assistant for a restaurant in Colombia.\n\nMENU:\n- Margarita $28,500\n- Pepperoni $32,000\n- Hawaiana $31,000\n- 4 Quesos $35,000\n- BBQ Chicken $38,000\n- Vegetariana $30,000\n- Mexicana $36,000\n- Marinera $42,000\n\nExtras: Borde de queso $5,000, Adicionales de pepperoni $6,000\n\nBebidas: Cerveza Club Colombia 330ml $10,000, Agua Mineral San Pellegrino 500ml $7,000, Agua Mineral Acqua Panna 500ml $7,000, Limonada Natural con Menta 400ml $7,000, Agua de la Casa Purificada 400ml $7,000\n\nRULES:\n1. Present menu in table format when asked.\n2. Ask for NAME, PIZZA, QUANTITY, EXTRAS, DRINKS.\n3. Use Calculator for totals.\n4. Confirm details before finalizing.\n5. ONLY when customer says CONFIRMO, S\u00cd, HACER LA ORDEN, PROCESAR, add EXACTLY this block at the VERY END:\n\n[ORDER_CONFIRMED]\nName: {customer name}\nItems: {complete order description}\nTotal: {total amount as number only}\n[/ORDER_CONFIRMED]\n\n6. NEVER invent customer name. Always ask if not provided.\n7. NEVER generate confirmation message before the block.\n8. Respond in Spanish. Use emojis.\n\nEXAMPLE:\nCustomer: Soy Camilo, quiero 1 Hawaiana y 1 Agua de la Casa\nYou: Perfecto Camilo. Resumen: 1 Pizza Hawaiana + 1 Agua de la Casa Purificada. Total: $38,000. \u00bfConfirmas?\nCustomer: S\u00ed, confirmo\nYou: \u00a1Gracias Camilo! Tu orden est\u00e1 en proceso.\n\n[ORDER_CONFIRMED]\nName: Camilo\nItems: 1 Pizza Hawaiana, 1 Agua de la Casa Purificada\nTotal: 38000\n[/ORDER_CONFIRMED]"
+        }
+      },
+      "id": "agent-001",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        432,
+        -96
+      ],
+      "executeOnce": false,
+      "typeVersion": 1.6
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        320,
+        208
+      ],
+      "id": "groq-001",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "ernzoPAc2qH1DTmO",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "mem-001",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        576,
+        192
+      ],
+      "typeVersion": 1.2
+    },
+    {
+      "parameters": {},
+      "id": "calc-001",
+      "name": "Calculator",
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "position": [
+        1136,
+        192
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const chatInput = $input.first().json.chatInput || '';\nconst chatOutput = $input.first().json.output || $input.first().json.chatOutput || '';\n\nconst orderMatch = chatOutput.match(/\\[ORDER_CONFIRMED\\]([\\s\\S]*?)\\[\\/ORDER_CONFIRMED\\]/);\n\nif (!orderMatch) {\n  return [{\n    json: {\n      hasOrder: false,\n      chatOutput: chatOutput,\n      message: 'No order confirmed in this message'\n    }\n  }];\n}\n\nconst orderBlock = orderMatch[1].trim();\nconst lines = orderBlock.split('\\n').map(l => l.trim()).filter(l => l && l.includes(':'));\n\nconst orderData = {};\nlines.forEach(line => {\n  const separatorIndex = line.indexOf(':');\n  if (separatorIndex > 0) {\n    const key = line.substring(0, separatorIndex).trim().toLowerCase();\n    const value = line.substring(separatorIndex + 1).trim();\n    orderData[key] = value;\n  }\n});\n\nconst orderId = 'ORD-' + Date.now().toString().slice(-6);\nconst now = new Date().toISOString();\n\nconst customerName = orderData['name'] || orderData['nombre'] || 'Cliente';\nconst items = orderData['items'] || orderData['productos'] || '';\nconst totalStr = (orderData['total'] || '0').replace(/[^0-9]/g, '');\nconst total = parseInt(totalStr) || 0;\n\nreturn [{\n  json: {\n    hasOrder: true,\n    chatOutput: chatOutput,\n    orderId: orderId,\n    customerName: customerName,\n    items: items,\n    total: total,\n    timestamp: now,\n    status: 'confirmed'\n  }\n}];"
+      },
+      "id": "extract-001",
+      "name": "Extract Order",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        650,
+        -96
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.hasOrder }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-001",
+      "name": "Has Order?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        850,
+        -96
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pedidos"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id_pedido": "={{ $json.orderId }}",
+            "Cliente": "={{ $json.customerName }}",
+            "Fecha": "={{ $json.timestamp }}",
+            "productos": "={{ $json.items }}",
+            "precio_unitario": "={{ $json.total }}",
+            "total": "={{ $json.total }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id_pedido",
+              "displayName": "id_pedido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "productos",
+              "displayName": "productos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "precio_unitario",
+              "displayName": "precio_unitario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "save-001",
+      "name": "Save to Pedidos",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1050,
+        -160
+      ],
+      "typeVersion": 4,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bDZrbf8DRhMQedzl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $input.first().json;\n\nconst formattedResponse = '\u2705 \u00a1ORDEN CONFIRMADA! \ud83c\udf55\\n\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n\ud83c\udd94 ID de Orden: ' + order.orderId + '\\n\ud83d\udc64 Cliente: ' + order.customerName + '\\n\ud83d\udce6 Productos: ' + order.items + '\\n\ud83d\udcb0 Total: $' + order.total.toLocaleString() + ' COP\\n\u23f0 Tiempo estimado: 30-45 minutos\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n\\n\u00a1Gracias por tu compra! \ud83d\ude0a\ud83c\udf89';\n\nreturn [{\n  json: {\n    chatOutput: formattedResponse\n  }\n}];"
+      },
+      "id": "confirm-001",
+      "name": "Order Confirmation",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1250,
+        -160
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst output = input.chatOutput || input.message || 'Error: no response';\n\nreturn [{\n  json: {\n    chatOutput: output\n  }\n}];"
+      },
+      "id": "pass-001",
+      "name": "Pass Through",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1050,
+        -32
+      ],
+      "typeVersion": 2
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Extract Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Order": {
+      "main": [
+        [
+          {
+            "node": "Has Order?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Order?": {
+      "main": [
+        [
+          {
+            "node": "Save to Pedidos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pass Through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Pedidos": {
+      "main": [
+        [
+          {
+            "node": "Order Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "v9-clean-json",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87776cfe6d1aa555c1d194a45707abc55cb5cfa662475a2847b45a80ebdc0aa2"
+  },
+  "id": "pizzaro-clean-json",
+  "tags": []
+}

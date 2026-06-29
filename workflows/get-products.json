@@ -1,0 +1,191 @@
+{
+  "name": "Pizzaro - Get Products",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -960,
+        192
+      ],
+      "typeVersion": 1,
+      "id": "trigger-get-prod"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Menu"
+        },
+        "options": {}
+      },
+      "name": "Read Menu",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -800,
+        32
+      ],
+      "typeVersion": 4,
+      "id": "read-menu",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bDZrbf8DRhMQedzl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1366790598,
+          "mode": "list",
+          "cachedResultName": "Extras",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM/edit#gid=1366790598"
+        },
+        "options": {}
+      },
+      "name": "Read Extras",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -800,
+        192
+      ],
+      "typeVersion": 4,
+      "id": "read-extras",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bDZrbf8DRhMQedzl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 412726655,
+          "mode": "list",
+          "cachedResultName": "Bebidas",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM/edit#gid=412726655"
+        },
+        "options": {}
+      },
+      "name": "Read Bebidas",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -800,
+        368
+      ],
+      "typeVersion": 4,
+      "id": "read-bebidas",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bDZrbf8DRhMQedzl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allInputs = $input.all();\n\nfunction extractArray(input) {\n  if (!input || !input.json) return [];\n  const data = input.json;\n  if (Array.isArray(data)) return data;\n  if (data.data && Array.isArray(data.data)) return data.data;\n  if (data.values && Array.isArray(data.values)) return data.values;\n  if (data.results && Array.isArray(data.results)) return data.results;\n  if (typeof data === 'object') {\n    const keys = Object.keys(data);\n    const possibleArray = keys.map(k => data[k]).filter(v => v !== null && typeof v === 'object');\n    if (possibleArray.length > 0) return possibleArray;\n  }\n  return [];\n}\n\nconst menuItems = extractArray(allInputs[0]);\nconst extrasItems = extractArray(allInputs[1]);\nconst bebidasItems = extractArray(allInputs[2]);\n\nconst products = menuItems.map(row => ({\n  id: row['id'] || row['ID'] || row['Id'],\n  name: row['name'] || row['Nombre'] || row['NAME'],\n  description: row['description'] || row['Description'] || '',\n  price: parseInt(row['price'] || row['Price'] || row['precio'] || 0),\n  size: row['size'] || row['Size'] || 'Mediana',\n  category: row['category'] || row['Category'] || row['categoria'] || 'General',\n  active: (row['active'] || row['Active'] || 'TRUE').toString().toUpperCase() === 'TRUE',\n  type: 'pizza'\n})).filter(p => p.active && p.name);\n\nconst extras = extrasItems.map(row => ({\n  name: row['name'] || row['Nombre'] || row['NAME'],\n  price: parseInt(row['price'] || row['Price'] || row['precio'] || 0),\n  type: 'extra'\n})).filter(e => e.name && e.price > 0);\n\nconst bebidas = bebidasItems.map(row => ({\n  id: row['id'] || row['ID'],\n  name: row['name'] || row['Nombre'] || row['NAME'],\n  description: row['description'] || '',\n  price: parseInt(row['price'] || row['Price'] || row['precio'] || 0),\n  type: 'bebida'\n})).filter(b => b.name && b.price > 0);\n\nreturn [{\n  json: {\n    products,\n    extras,\n    bebidas,\n    totalItems: products.length + extras.length + bebidas.length\n  }\n}];"
+      },
+      "name": "Merge All",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -560,
+        208
+      ],
+      "typeVersion": 2,
+      "id": "merge-all"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Menu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Extras",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read Bebidas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Menu": {
+      "main": [
+        [
+          {
+            "node": "Merge All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Extras": {
+      "main": [
+        [
+          {
+            "node": "Merge All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Bebidas": {
+      "main": [
+        [
+          {
+            "node": "Merge All",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "v1-get-products",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87776cfe6d1aa555c1d194a45707abc55cb5cfa662475a2847b45a80ebdc0aa2"
+  },
+  "id": "plI5xlrSdsYdi9JX",
+  "tags": []
+}

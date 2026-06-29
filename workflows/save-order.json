@@ -1,0 +1,191 @@
+{
+  "name": "Pizzaro - Save Order",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -448,
+        224
+      ],
+      "typeVersion": 1,
+      "id": "932592a3-da75-4430-a578-58e7675b49aa"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst orderId = 'ORD-' + Date.now().toString().slice(-6);\nconst now = new Date().toISOString();\n\nreturn [{\n  json: {\n    orderId: orderId,\n    customerName: input.customerName || 'Cliente',\n    items: input.items || '',\n    total: input.total || 0,\n    status: 'confirmed',\n    timestamp: now,\n    notes: input.notes || ''\n  }\n}];"
+      },
+      "name": "Generate Order",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -256,
+        224
+      ],
+      "typeVersion": 2,
+      "id": "616c3a39-007b-4301-9b11-ced6b63d9d77"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 365116572,
+          "mode": "list",
+          "cachedResultName": "Pedidos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1iFS8VML-0EWdk2o7bbFhAh2MYPcsFL7iG7rLJbvP2SM/edit#gid=365116572"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id_pedido": "={{ $json.orderId }}",
+            "Fecha": "={{ $json.timestamp }}",
+            "productos": "={{ $json.items }}",
+            "total": "={{ $json.total }}",
+            "precio_unitario": "0",
+            "Cliente": "={{ $json.customerName }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id_pedido",
+              "displayName": "id_pedido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "productos",
+              "displayName": "productos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "precio_unitario",
+              "displayName": "precio_unitario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "Save to Pedidos",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -48,
+        224
+      ],
+      "typeVersion": 4,
+      "id": "07194af9-3122-4a52-a73e-7c17ba702cca",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "bDZrbf8DRhMQedzl",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const saved = $input.first().json;\nreturn [{\n  json: {\n    orderId: saved.orderId,\n    status: 'confirmed',\n    message: 'Orden guardada exitosamente',\n    estimatedTime: '30-45 minutos',\n    savedToSheet: True\n  }\n}];"
+      },
+      "name": "Return Confirmation",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        160,
+        224
+      ],
+      "typeVersion": 2,
+      "id": "737e20f0-4411-41e5-aa03-c32ab857f7f9"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Order": {
+      "main": [
+        [
+          {
+            "node": "Save to Pedidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Pedidos": {
+      "main": [
+        [
+          {
+            "node": "Return Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "f7fbc27a-bf93-4629-a924-fe0f58c62267",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87776cfe6d1aa555c1d194a45707abc55cb5cfa662475a2847b45a80ebdc0aa2"
+  },
+  "id": "j1bXm3gOVn1POMoC",
+  "tags": []
+}
